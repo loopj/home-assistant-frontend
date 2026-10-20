@@ -309,6 +309,8 @@ export const getMyRedirects = (): Redirects => ({
     redirect: "/config/logs",
     params: {
       provider: "string?",
+      search: "string?",
+      raw: "string?",
     },
   },
   repairs: {
