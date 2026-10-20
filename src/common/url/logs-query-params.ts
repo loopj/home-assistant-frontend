@@ -13,6 +13,7 @@ export const logSearchQueryParamConfig = {
 
 export const logsQueryParamConfig = {
   string: ["provider", "search", "filter"],
+  boolean: [{ key: "raw", trueValue: "1" }],
 } as const satisfies QueryParamConfig;
 
 export type LogsQueryParams = QueryParamValues<typeof logsQueryParamConfig>;
@@ -32,11 +33,19 @@ export const logProviderFromUrl = (searchParams: SearchParamsSource): string =>
   decodeQueryParams(searchParams, logsQueryParamConfig).provider ??
   DEFAULT_LOG_PROVIDER;
 
-/** Params for the logs page. The default provider and no search are left out. */
+export const logRawFromUrl = (searchParams: SearchParamsSource): boolean =>
+  decodeQueryParams(searchParams, logsQueryParamConfig).raw ?? false;
+
+/**
+ * Params for the logs page. The default provider and no search are left out,
+ * and raw only applies to Core, the other providers only have raw logs.
+ */
 export const logsQueryParamsFromState = (
   provider: string,
-  search: string
+  search: string,
+  raw = false
 ): LogsQueryParams => ({
   provider: provider === DEFAULT_LOG_PROVIDER ? undefined : provider,
   search,
+  raw: provider === DEFAULT_LOG_PROVIDER && raw,
 });

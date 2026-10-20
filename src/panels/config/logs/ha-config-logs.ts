@@ -20,6 +20,7 @@ import { stringCompare } from "../../../common/string/compare";
 import {
   DEFAULT_LOG_PROVIDER,
   logProviderFromUrl,
+  logRawFromUrl,
   logSearchFromUrl,
   logsQueryParamConfig,
   logsQueryParamsFromState,
@@ -225,6 +226,7 @@ export class HaConfigLogs extends LitElement {
 
   private _showDetail() {
     this._detail = !this._detail;
+    this._writeUrl();
   }
 
   private _openPicker(ev: Event) {
@@ -260,6 +262,7 @@ export class HaConfigLogs extends LitElement {
   }
 
   // The URL is the state of the page: no provider is Core, no search is none
+  // and no raw is Core's condensed view
   private _applyUrl() {
     const searchParams = this._queryParams.searchParams();
 
@@ -268,6 +271,7 @@ export class HaConfigLogs extends LitElement {
     }
 
     this._filter = logSearchFromUrl(searchParams);
+    this._detail = logRawFromUrl(searchParams);
 
     if (!this._providersLoaded) {
       return;
@@ -303,7 +307,11 @@ export class HaConfigLogs extends LitElement {
 
   private _writeUrl(debounced = false) {
     this._queryParams.write(
-      logsQueryParamsFromState(this._selectedLogProvider, this._filter),
+      logsQueryParamsFromState(
+        this._selectedLogProvider,
+        this._filter,
+        this._detail
+      ),
       debounced
     );
   }

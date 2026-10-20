@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   logProviderFromUrl,
+  logRawFromUrl,
   logSearchFromUrl,
   logsQueryParamConfig,
   logsQueryParamsFromState,
@@ -40,5 +41,24 @@ describe("logsQueryParamsFromState", () => {
         logsQueryParamConfig
       )
     ).toBe("");
+  });
+
+  it("only writes raw for Core", () => {
+    expect(
+      updateQueryString(
+        "",
+        logsQueryParamsFromState("core", "", true),
+        logsQueryParamConfig
+      )
+    ).toBe("raw=1");
+    expect(
+      updateQueryString(
+        "?raw=1",
+        logsQueryParamsFromState("supervisor", "", true),
+        logsQueryParamConfig
+      )
+    ).toBe("provider=supervisor");
+    expect(logRawFromUrl("?raw=1")).toBe(true);
+    expect(logRawFromUrl("?raw=true")).toBe(false);
   });
 });
