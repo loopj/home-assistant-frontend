@@ -699,6 +699,7 @@ export class HaAutomationRowTargets extends LitElement {
       type: targetType,
       itemId: targetId,
       selector: this.selector,
+      exclude: this._getExclude(),
     });
   }
 
