@@ -107,6 +107,31 @@ describe("QueryParamsController", () => {
     expect(navigated).not.toHaveBeenCalled();
   });
 
+  it("follows the router replacing the URL with its default page", () => {
+    setUrl("/page/dashboard?other=1");
+    window.dispatchEvent(
+      Object.assign(new Event("location-changed"), {
+        detail: { replace: true },
+      })
+    );
+    expect(navigated).toHaveBeenCalledOnce();
+
+    controller.write({ search: "abc" });
+    expect(currentUrl()).toBe("/page/dashboard?other=1&search=abc");
+  });
+
+  it("does nothing once a link pushes a page below it", () => {
+    setUrl("/page/item?other=1");
+    window.dispatchEvent(
+      Object.assign(new Event("location-changed"), {
+        detail: { replace: false },
+      })
+    );
+    controller.write({ search: "abc" });
+    expect(currentUrl()).toBe("/page/item?other=1");
+    expect(navigated).not.toHaveBeenCalled();
+  });
+
   it("does nothing when not enabled", () => {
     enabled = false;
     controller.write({ search: "abc" });

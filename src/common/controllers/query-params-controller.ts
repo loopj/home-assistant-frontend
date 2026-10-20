@@ -3,7 +3,7 @@ import type {
   ReactiveControllerHost,
 } from "@lit/reactive-element/reactive-controller";
 import { mainWindow } from "../dom/get_main_window";
-import { replaceCurrentUrl } from "../navigate";
+import { replaceCurrentUrl, type NavigateOptions } from "../navigate";
 import { constructUrlCurrentPath } from "../url/construct-url";
 import { currentPath } from "../url/current-path";
 import {
@@ -30,7 +30,7 @@ export interface QueryParamsControllerOptions {
  * shared, bookmarked and reloaded. Writes replace the current history entry,
  * so Back leaves the page instead of undoing each change, and only touch the
  * config's params. The controller only acts while the URL is still the
- * page the host was connected on.
+ * page the host was connected on, or the default page its router opened.
  */
 export class QueryParamsController<
   C extends QueryParamConfig,
@@ -120,8 +120,16 @@ export class QueryParamsController<
     return this._options.enabled() && currentPath() === this._path;
   }
 
-  private _navigated = () => {
+  private _navigated = (ev?: Event & { detail?: NavigateOptions }) => {
     this._cancelPending();
+    // A router opening its default page, like /config/devices going to
+    // /config/devices/dashboard, replaces the URL after the host connected
+    const path = currentPath();
+
+    if (ev?.detail?.replace && path.startsWith(`${this._path}/`)) {
+      this._path = path;
+    }
+
     // Leaving the page gets here too, before the router swaps the page
     if (this._isActive()) {
       this._options.navigated();
