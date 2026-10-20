@@ -71,6 +71,9 @@ export class QueryParamsController<
     mainWindow.removeEventListener("location-changed", this._navigated);
     mainWindow.removeEventListener("popstate", this._navigated);
     this._cancelPending();
+    // A detached host can still get late events, like a filter that finished
+    // a lookup, and must not write over the page that is open now
+    this._path = undefined;
   }
 
   /** The current search params, or undefined when not on the host's page. */

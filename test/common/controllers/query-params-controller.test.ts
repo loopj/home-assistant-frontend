@@ -107,6 +107,17 @@ describe("QueryParamsController", () => {
     expect(navigated).not.toHaveBeenCalled();
   });
 
+  it("does nothing once disconnected, even on the same page", () => {
+    controller.hostDisconnected();
+    controller.write({ search: "abc" });
+    expect(currentUrl()).toBe("/page?other=1");
+    expect(controller.searchParams()).toBeUndefined();
+
+    controller.hostConnected();
+    controller.write({ search: "abc" });
+    expect(currentUrl()).toBe("/page?other=1&search=abc");
+  });
+
   it("does nothing when not enabled", () => {
     enabled = false;
     controller.write({ search: "abc" });
