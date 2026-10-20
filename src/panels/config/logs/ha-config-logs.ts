@@ -17,6 +17,7 @@ import { QueryParamsController } from "../../../common/controllers/query-params-
 import type { HASSDomTargetEvent } from "../../../common/dom/fire_event";
 import { navigate } from "../../../common/navigate";
 import { stringCompare } from "../../../common/string/compare";
+import { currentPath } from "../../../common/url/current-path";
 import {
   DEFAULT_LOG_PROVIDER,
   logProviderFromUrl,
@@ -249,7 +250,8 @@ export class HaConfigLogs extends LitElement {
       logsQueryParamConfig
     );
 
-    navigate(`/config/logs${queryString ? `?${queryString}` : ""}`);
+    // From the current path, so a trailing slash still matches the controller
+    navigate(`${currentPath()}${queryString ? `?${queryString}` : ""}`);
   }
 
   private async _init() {
