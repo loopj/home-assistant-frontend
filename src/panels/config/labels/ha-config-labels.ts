@@ -478,7 +478,7 @@ export class HaConfigLabels extends LitElement {
         this._navigateConfig("/config/entities");
         break;
       case "navigate-devices":
-        this._navigateConfig("/config/devices/dashboard");
+        this._navigateConfig("/config/devices/dashboard", "&status=disabled");
         break;
       case "navigate-automations":
         this._navigateConfig("/config/automation/dashboard");
@@ -495,8 +495,10 @@ export class HaConfigLabels extends LitElement {
     }
   };
 
-  private _navigateConfig = (path: string) => {
-    navigate(`${path}?historyBack=1&label=${this._overflowLabel.label_id}`);
+  private _navigateConfig = (path: string, params = "") => {
+    navigate(
+      `${path}?historyBack=1&label=${this._overflowLabel.label_id}${params}`
+    );
   };
 
   private _handleSortingChanged(ev: CustomEvent) {
