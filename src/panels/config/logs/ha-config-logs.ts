@@ -257,6 +257,8 @@ export class HaConfigLogs extends LitElement {
       await this._getInstalledAddons();
     }
 
+    // Keep a search typed while the apps were loading
+    this._queryParams.flush();
     this._providersLoaded = true;
     this._applyUrl();
   }
@@ -279,14 +281,18 @@ export class HaConfigLogs extends LitElement {
 
     const provider = logProviderFromUrl(searchParams);
 
-    if (
+    const providerFound =
       provider === DEFAULT_LOG_PROVIDER ||
       (isComponentLoaded(this.hass.config, "hassio") &&
-        this._logProviders.some((p) => p.key === provider))
-    ) {
-      this._selectedLogProvider = provider;
-    } else {
-      this._selectedLogProvider = DEFAULT_LOG_PROVIDER;
+        this._logProviders.some((p) => p.key === provider));
+
+    this._selectedLogProvider = providerFound ? provider : DEFAULT_LOG_PROVIDER;
+
+    // Before the alert adds its history entry, so closing it doesn't go back
+    // to the missing provider
+    this._writeUrl();
+
+    if (!providerFound) {
       showAlertDialog(this, {
         title:
           this.hass.localize("ui.panel.config.logs.provider_not_found") ||
@@ -301,17 +307,16 @@ export class HaConfigLogs extends LitElement {
         ),
       });
     }
-
-    this._writeUrl();
   }
 
   private _writeUrl(debounced = false) {
+    // Until the apps are loaded, keep the provider the URL asks for
+    const provider = this._providersLoaded
+      ? this._selectedLogProvider
+      : logProviderFromUrl(this._queryParams.searchParams() ?? "");
+
     this._queryParams.write(
-      logsQueryParamsFromState(
-        this._selectedLogProvider,
-        this._filter,
-        this._detail
-      ),
+      logsQueryParamsFromState(provider, this._filter, this._detail),
       debounced
     );
   }
