@@ -13,10 +13,18 @@ import { customElement, property, query, state } from "lit/decorators";
 import memoizeOne from "memoize-one";
 import { isComponentLoaded } from "../../../common/config/is_component_loaded";
 import { atLeastVersion } from "../../../common/config/version";
+import { QueryParamsController } from "../../../common/controllers/query-params-controller";
 import type { HASSDomTargetEvent } from "../../../common/dom/fire_event";
 import { navigate } from "../../../common/navigate";
 import { stringCompare } from "../../../common/string/compare";
-import { extractSearchParam } from "../../../common/url/search-params";
+import {
+  DEFAULT_LOG_PROVIDER,
+  logProviderFromUrl,
+  logSearchFromUrl,
+  logsQueryParamConfig,
+  logsQueryParamsFromState,
+} from "../../../common/url/logs-query-params";
+import { createQueryString } from "../../../common/url/query-params";
 import "../../../components/ha-app-icon";
 import "../../../components/ha-button";
 import "../../../components/ha-generic-picker";
@@ -80,7 +88,7 @@ export class HaConfigLogs extends LitElement {
 
   @property({ attribute: false }) public route!: Route;
 
-  @state() private _filter = extractSearchParam("filter") || "";
+  @state() private _filter = "";
 
   @state() private _detail = false;
 
@@ -88,9 +96,17 @@ export class HaConfigLogs extends LitElement {
 
   @query("ha-generic-picker") private providerPicker?: HaGenericPicker;
 
-  @state() private _selectedLogProvider = "core";
+  @state() private _selectedLogProvider = DEFAULT_LOG_PROVIDER;
 
   @state() private _logProviders = logProviders;
+
+  // The provider in the URL is only checked once the apps are loaded
+  private _providersLoaded = false;
+
+  private _queryParams = new QueryParamsController(this, logsQueryParamConfig, {
+    enabled: () => true,
+    navigated: () => this._applyUrl(),
+  });
 
   public connectedCallback() {
     super.connectedCallback();
@@ -100,13 +116,26 @@ export class HaConfigLogs extends LitElement {
     }
   }
 
+  protected willUpdate(changedProps: PropertyValues<this>): void {
+    super.willUpdate(changedProps);
+
+    if (!this.hasUpdated) {
+      this._applyUrl();
+    }
+  }
+
   protected firstUpdated(changedProps: PropertyValues<this>): void {
     super.firstUpdated(changedProps);
     this._init();
   }
 
-  private async _filterChanged(ev: HASSDomTargetEvent<HaInputSearch>) {
+  private _filterChanged(ev: HASSDomTargetEvent<HaInputSearch>) {
     this._filter = ev.target.value ?? "";
+    this._writeUrl(true);
+  }
+
+  private _flushUrl() {
+    this._queryParams.flush();
   }
 
   protected render(): TemplateResult {
@@ -115,6 +144,7 @@ export class HaConfigLogs extends LitElement {
         <ha-input-search
           appearance="outlined"
           @input=${this._filterChanged}
+          @blur=${this._flushUrl}
           .value=${this._filter}
           .placeholder=${this.hass.localize("ui.panel.config.logs.search")}
         ></ha-input-search>
@@ -207,39 +237,75 @@ export class HaConfigLogs extends LitElement {
     if (!provider) {
       return;
     }
-    this._selectedLogProvider = provider;
-    this._filter = "";
-    navigate(`/config/logs?provider=${this._selectedLogProvider}`);
+
+    // Keep the search typed so far on the entry Back returns to
+    this._queryParams.flush();
+
+    // A new provider is a new history entry, without the search
+    const queryString = createQueryString(
+      logsQueryParamsFromState(provider, ""),
+      logsQueryParamConfig
+    );
+
+    navigate(`/config/logs${queryString ? `?${queryString}` : ""}`);
   }
 
   private async _init() {
     if (isComponentLoaded(this.hass.config, "hassio")) {
       await this._getInstalledAddons();
     }
-    const providerKey = extractSearchParam("provider");
-    if (providerKey) {
-      if (
-        isComponentLoaded(this.hass.config, "hassio") &&
-        this._logProviders.find((p) => p.key === providerKey)
-      ) {
-        this._selectedLogProvider = providerKey;
-      } else {
-        navigate("/config/logs", { replace: true });
-        showAlertDialog(this, {
-          title:
-            this.hass.localize("ui.panel.config.logs.provider_not_found") ||
-            "Log provider not found",
-          text: this.hass.localize(
-            "ui.panel.config.logs.provider_not_available",
-            {
-              provider:
-                this._logProviders.find((p) => p.key === providerKey)?.name ||
-                providerKey,
-            }
-          ),
-        });
-      }
+
+    this._providersLoaded = true;
+    this._applyUrl();
+  }
+
+  // The URL is the state of the page: no provider is Core, no search is none
+  private _applyUrl() {
+    const searchParams = this._queryParams.searchParams();
+
+    if (!searchParams) {
+      return;
     }
+
+    this._filter = logSearchFromUrl(searchParams);
+
+    if (!this._providersLoaded) {
+      return;
+    }
+
+    const provider = logProviderFromUrl(searchParams);
+
+    if (
+      provider === DEFAULT_LOG_PROVIDER ||
+      (isComponentLoaded(this.hass.config, "hassio") &&
+        this._logProviders.some((p) => p.key === provider))
+    ) {
+      this._selectedLogProvider = provider;
+    } else {
+      this._selectedLogProvider = DEFAULT_LOG_PROVIDER;
+      showAlertDialog(this, {
+        title:
+          this.hass.localize("ui.panel.config.logs.provider_not_found") ||
+          "Log provider not found",
+        text: this.hass.localize(
+          "ui.panel.config.logs.provider_not_available",
+          {
+            provider:
+              this._logProviders.find((p) => p.key === provider)?.name ||
+              provider,
+          }
+        ),
+      });
+    }
+
+    this._writeUrl();
+  }
+
+  private _writeUrl(debounced = false) {
+    this._queryParams.write(
+      logsQueryParamsFromState(this._selectedLogProvider, this._filter),
+      debounced
+    );
   }
 
   private async _getInstalledAddons() {
